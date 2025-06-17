@@ -41,6 +41,10 @@ class UserProfileCubit extends Cubit<UserProfileState> {
     required String nivelEducativo,
     required String ubicacionGeografica,
   }) async {
+    print('🚀 DEBUG CUBIT: Iniciando saveProfile...');
+    print(
+        '🚀 DEBUG CUBIT: Datos recibidos - Nombre: $nombre, Email: $correoElectronico');
+
     emit(UserProfileLoading());
     try {
       final profile = UserProfile(
@@ -52,11 +56,23 @@ class UserProfileCubit extends Cubit<UserProfileState> {
         ubicacionGeografica: ubicacionGeografica,
       );
 
+      print('🚀 DEBUG CUBIT: Perfil creado en memoria: ${profile.nombre}');
+      print('🚀 DEBUG CUBIT: Llamando saveUserProfile...');
+
       await saveUserProfile(profile);
+
+      print('🚀 DEBUG CUBIT: ✅ saveUserProfile completado');
+
       _currentProfile = profile;
+      print('🚀 DEBUG CUBIT: _currentProfile actualizado');
+
       emit(UserProfileSaved());
+      print('🚀 DEBUG CUBIT: Emitido UserProfileSaved');
+
       emit(UserProfileLoaded(profile: _currentProfile));
+      print('🚀 DEBUG CUBIT: Emitido UserProfileLoaded');
     } catch (e) {
+      print('🚀 DEBUG CUBIT: ❌ Error en saveProfile: $e');
       emit(UserProfileError(message: e.toString()));
     }
   }
@@ -83,4 +99,3 @@ class UserProfileCubit extends Cubit<UserProfileState> {
     }
   }
 }
-

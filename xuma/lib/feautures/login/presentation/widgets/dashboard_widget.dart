@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:xuma/feautures/login/presentation/widgets/storage_debug_widget.dart';
 import '../cubit/user_profile_cubit.dart';
 import '../cubit/user_profile_state.dart';
 
@@ -91,6 +92,7 @@ class DashboardWidget extends StatelessWidget {
           _buildProfileCard(profile),
           const SizedBox(height: 24),
           _buildProgressSection(context, profile),
+          StorageDebugWidget(), // Integración del widget de debug
         ],
       ),
     );
