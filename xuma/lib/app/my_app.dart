@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:xuma/core/services/firebase_service.dart';
+import 'package:xuma/core/services/notification_service.dart';
 import 'package:xuma/feautures/login/presentation/pages/dashboard_page.dart';
 import 'package:xuma/feautures/login/presentation/pages/profile_form_page.dart';
 import 'package:xuma/feautures/auth/presentation/pages/login_page.dart';
@@ -10,8 +12,14 @@ import 'package:xuma/di/injection_container.dart' as di;
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
+  Future<void> _printFcmToken() async {
+    String? token = await FirebaseService.getToken();
+    print('FCM Token: $token');
+  }
+
   @override
   Widget build(BuildContext context) {
+    _printFcmToken();
     return BlocProvider(
       create: (context) => di.sl<AuthCubit>()..initializeAuth(),
       child: MaterialApp(
