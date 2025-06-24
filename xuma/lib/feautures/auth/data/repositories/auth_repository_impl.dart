@@ -1,4 +1,4 @@
-
+import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:xuma/feautures/auth/data/model/auth_session_model.dart';
 import 'package:xuma/feautures/auth/domain/entities/auth_session.dart';
@@ -8,6 +8,7 @@ import 'package:xuma/feautures/login/data/datasource/secure_storage_datasource.d
 class AuthRepositoryImpl implements AuthRepository {
   final SecureStorageDataSource dataSource;
   static const String _sessionKey = 'auth_session_secure';
+  static const String _credentialsKey = 'user_credentials_secure';
   
   // Acceso directo al secure storage
   late final FlutterSecureStorage _secureStorage;
@@ -21,41 +22,151 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-@override
-Future<AuthSession> login(String username, String password) async {
-  // Aquí normalmente harías una llamada a tu API
-  // Por ahora simulamos la autenticación con email/contraseña
-  print('🔐 AUTH: Iniciando sesión para usuario: $username');
-  
-  // Simulación de validación de credenciales
-  if (username.isEmpty || password.isEmpty) {
-    throw Exception('Email y contraseña son requeridos');
+  @override
+  Future<AuthSession> login(String username, String password) async {
+    print('🔐 AUTH: Intentando login para usuario: $username');
+    
+    if (username.isEmpty || password.isEmpty) {
+      throw Exception('Email y contraseña son requeridos');
+    }
+    
+    // Validar formato de email
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}')
+        .hasMatch(username)) {
+      throw Exception('Por favor ingresa un email válido');
+    }
+    
+    // Verificar si existen credenciales guardadas
+    final storedCredentials = await _getStoredCredentials();
+    
+    if (storedCredentials == null) {
+      throw Exception('No hay cuenta registrada. Por favor crea una cuenta primero.');
+    }
+    
+    // Validar credenciales
+    if (storedCredentials['email'] != username || 
+        storedCredentials['password'] != password) {
+      throw Exception('Email o contraseña incorrectos');
+    }
+    
+    // Simulamos un delay de red
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // Crear nueva sesión
+    final session = AuthSessionModel(
+      token: AuthSessionModel.generateToken(),
+      createdAt: DateTime.now(),
+      lastActivity: DateTime.now(),
+      timeoutMinutes: 1, // 15 minutos de timeout
+      isActive: true,
+    );
+    
+    // Guardar sesión en almacenamiento seguro
+    await saveSession(session);
+    
+    print('🔐 AUTH: Login exitoso para: $username');
+    return session;
   }
-  
-  // Validar formato de email
-  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}')
-      .hasMatch(username)) {
-    throw Exception('Por favor ingresa un email válido');
+
+  @override
+  Future<AuthSession> createAccount(String email, String password, String name) async {
+    print('🔐 AUTH: Creando cuenta para usuario: $email');
+    
+    if (email.isEmpty || password.isEmpty || name.isEmpty) {
+      throw Exception('Todos los campos son requeridos');
+    }
+    
+    // Validar formato de email
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}')
+        .hasMatch(email)) {
+      throw Exception('Por favor ingresa un email válido');
+    }
+    
+    if (password.length < 4) {
+      throw Exception('La contraseña debe tener al menos 4 caracteres');
+    }
+    
+    // Verificar si ya existe una cuenta
+    final existingCredentials = await _getStoredCredentials();
+    if (existingCredentials != null) {
+      throw Exception('Ya existe una cuenta registrada. Usa el login para acceder.');
+    }
+    
+    // Simulamos un delay de red
+    await Future.delayed(const Duration(seconds: 1));
+    
+    // Guardar credenciales
+    await _saveCredentials(email, password, name);
+    
+    // Crear nueva sesión
+    final session = AuthSessionModel(
+      token: AuthSessionModel.generateToken(),
+      createdAt: DateTime.now(),
+      lastActivity: DateTime.now(),
+      timeoutMinutes: 1,
+      isActive: true,
+    );
+    
+    // Guardar sesión en almacenamiento seguro
+    await saveSession(session);
+    
+    print('🔐 AUTH: Cuenta creada exitosamente para: $email');
+    return session;
   }
-  
-  // Simulamos un delay de red
-  await Future.delayed(const Duration(seconds: 1));
-  
-  // Crear nueva sesión (en una app real aquí validarías contra tu backend)
-  final session = AuthSessionModel(
-    token: AuthSessionModel.generateToken(),
-    createdAt: DateTime.now(),
-    lastActivity: DateTime.now(),
-    timeoutMinutes: 15, // 15 minutos de timeout
-    isActive: true,
-  );
-  
-  // Guardar sesión en almacenamiento seguro
-  await saveSession(session);
-  
-  print('🔐 AUTH: Sesión creada exitosamente para: $username');
-  return session;
-}
+
+  @override
+  Future<bool> hasRegisteredAccount() async {
+    try {
+      final credentials = await _getStoredCredentials();
+      return credentials != null;
+    } catch (e) {
+      print('🔐 AUTH: Error al verificar cuenta existente: $e');
+      return false;
+    }
+  }
+
+  @override
+  Future<Map<String, String>?> getStoredCredentials() async {
+    return await _getStoredCredentials();
+  }
+
+  Future<Map<String, String>?> _getStoredCredentials() async {
+    try {
+      final credentialsData = await _secureStorage.read(key: _credentialsKey);
+      if (credentialsData == null) return null;
+      
+      final Map<String, dynamic> credentials = 
+          Map<String, dynamic>.from(jsonDecode(credentialsData));
+      
+      return {
+        'email': credentials['email'] ?? '',
+        'password': credentials['password'] ?? '',
+        'name': credentials['name'] ?? '',
+      };
+    } catch (e) {
+      print('🔐 AUTH: Error al leer credenciales: $e');
+      return null;
+    }
+  }
+
+  Future<void> _saveCredentials(String email, String password, String name) async {
+    try {
+      final credentials = {
+        'email': email,
+        'password': password,
+        'name': name,
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+      
+      final jsonString = jsonEncode(credentials);
+      await _secureStorage.write(key: _credentialsKey, value: jsonString);
+      
+      print('🔐 AUTH: Credenciales guardadas exitosamente');
+    } catch (e) {
+      print('🔐 AUTH: Error al guardar credenciales: $e');
+      throw Exception('Error al guardar las credenciales: $e');
+    }
+  }
 
   @override
   Future<void> logout() async {
@@ -73,6 +184,24 @@ Future<AuthSession> login(String username, String password) async {
     await clearSession();
     
     print('🔐 AUTH: Sesión cerrada exitosamente');
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    print('🔐 AUTH: Eliminando cuenta...');
+    
+    try {
+      // Cerrar sesión actual
+      await logout();
+      
+      // Eliminar credenciales
+      await _secureStorage.delete(key: _credentialsKey);
+      
+      print('🔐 AUTH: Cuenta eliminada exitosamente');
+    } catch (e) {
+      print('🔐 AUTH: Error al eliminar cuenta: $e');
+      throw Exception('Error al eliminar la cuenta: $e');
+    }
   }
 
   @override

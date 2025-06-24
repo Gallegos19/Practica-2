@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:xuma/feautures/auth/domain/usecases/check_account_exist_usecase.dart';
 
 // Imports existentes
 import 'package:xuma/feautures/login/data/datasource/secure_storage_datasource.dart';
@@ -11,7 +12,7 @@ import 'package:xuma/feautures/login/domain/usecases/save_user_profile_usecase.d
 import 'package:xuma/feautures/login/domain/usecases/update_activity_progress_usecase.dart';
 import 'package:xuma/feautures/login/presentation/cubit/user_profile_cubit.dart';
 
-// Nuevos imports para autenticación
+// Imports de autenticación
 import 'package:xuma/feautures/auth/data/repositories/auth_repository_impl.dart';
 import 'package:xuma/feautures/auth/domain/repositories/auth_repository.dart';
 import 'package:xuma/feautures/auth/domain/usecases/login_usecase.dart';
@@ -19,9 +20,12 @@ import 'package:xuma/feautures/auth/domain/usecases/logout_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/get_current_session_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/update_activity_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/check_session_validity_usecase.dart';
+import 'package:xuma/feautures/auth/domain/usecases/create_account_usecase.dart';
+import 'package:xuma/feautures/auth/domain/usecases/delete_account_usecase.dart';
 import 'package:xuma/feautures/auth/presentation/cubit/auth_cubit.dart';
 
 final sl = GetIt.instance;
+
 Future<void> init() async {
   print('🚀 INJECTION: Inicializando dependencias...');
 
@@ -72,6 +76,9 @@ Future<void> init() async {
   sl.registerLazySingleton<GetCurrentSessionUseCase>(() => GetCurrentSessionUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton<UpdateActivityUseCase>(() => UpdateActivityUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton<CheckSessionValidityUseCase>(() => CheckSessionValidityUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton<CreateAccountUseCase>(() => CreateAccountUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton<CheckAccountExistsUseCase>(() => CheckAccountExistsUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton<DeleteAccountUseCase>(() => DeleteAccountUseCase(sl<AuthRepository>()));
 
   // Authentication - Cubit
   sl.registerFactory<AuthCubit>(() => AuthCubit(
@@ -80,6 +87,9 @@ Future<void> init() async {
     getCurrentSessionUseCase: sl<GetCurrentSessionUseCase>(),
     updateActivityUseCase: sl<UpdateActivityUseCase>(),
     checkSessionValidityUseCase: sl<CheckSessionValidityUseCase>(),
+    createAccountUseCase: sl<CreateAccountUseCase>(),
+    checkAccountExistsUseCase: sl<CheckAccountExistsUseCase>(),
+    deleteAccountUseCase: sl<DeleteAccountUseCase>(),
   ));
 
   print('🚀 INJECTION: Dependencias inicializadas exitosamente');

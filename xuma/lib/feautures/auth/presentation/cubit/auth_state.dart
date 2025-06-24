@@ -14,6 +14,22 @@ class AuthInitial extends AuthState {}
 // Estado de carga
 class AuthLoading extends AuthState {}
 
+// Estado cuando no hay cuenta registrada
+class AuthNoAccountRegistered extends AuthState {}
+
+// Estado para ir a crear cuenta
+class AuthGoToCreateAccount extends AuthState {}
+
+// Estado cuando la cuenta fue creada exitosamente
+class AuthAccountCreated extends AuthState {
+  final AuthSession session;
+
+  const AuthAccountCreated({required this.session});
+
+  @override
+  List<Object> get props => [session];
+}
+
 // Estado autenticado
 class AuthAuthenticated extends AuthState {
   final AuthSession session;
@@ -24,7 +40,7 @@ class AuthAuthenticated extends AuthState {
   List<Object> get props => [session];
 }
 
-// Estado no autenticado
+// Estado no autenticado (pero con cuenta registrada)
 class AuthUnauthenticated extends AuthState {}
 
 // Estado de error

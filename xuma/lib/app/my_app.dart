@@ -50,8 +50,13 @@ class MyApp extends StatelessWidget {
             if (state is AuthAuthenticated) {
               return const DashboardPage();
             }
+
+            // Si cuenta fue creada, ir al formulario de perfil
+            if (state is AuthAccountCreated) {
+              return const ProfileFormPage();
+            }
             
-            // Si no está autenticado, ir al login
+            // Si no hay cuenta registrada o otros estados de auth, ir al login
             return const LoginPage();
           },
         ),

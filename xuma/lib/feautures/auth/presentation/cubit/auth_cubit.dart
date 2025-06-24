@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:xuma/feautures/auth/domain/entities/auth_session.dart';
+import 'package:xuma/feautures/auth/domain/usecases/check_account_exist_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/check_session_validity_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/get_current_session_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/login_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/logout_usecase.dart';
 import 'package:xuma/feautures/auth/domain/usecases/update_activity_usecase.dart';
+import 'package:xuma/feautures/auth/domain/usecases/create_account_usecase.dart';
+import 'package:xuma/feautures/auth/domain/usecases/delete_account_usecase.dart';
 import 'auth_state.dart';
 
 class AuthCubit extends Cubit<AuthState> {
@@ -14,6 +17,9 @@ class AuthCubit extends Cubit<AuthState> {
   final GetCurrentSessionUseCase getCurrentSessionUseCase;
   final UpdateActivityUseCase updateActivityUseCase;
   final CheckSessionValidityUseCase checkSessionValidityUseCase;
+  final CreateAccountUseCase createAccountUseCase;
+  final CheckAccountExistsUseCase checkAccountExistsUseCase;
+  final DeleteAccountUseCase deleteAccountUseCase;
 
   Timer? _sessionTimer;
   Timer? _warningTimer;
@@ -25,6 +31,9 @@ class AuthCubit extends Cubit<AuthState> {
     required this.getCurrentSessionUseCase,
     required this.updateActivityUseCase,
     required this.checkSessionValidityUseCase,
+    required this.createAccountUseCase,
+    required this.checkAccountExistsUseCase,
+    required this.deleteAccountUseCase,
   }) : super(AuthInitial());
 
   AuthSession? get currentSession => _currentSession;
@@ -32,11 +41,29 @@ class AuthCubit extends Cubit<AuthState> {
       _currentSession!.isActive && 
       !_currentSession!.isExpired;
 
+  // Verificar si existe una cuenta registrada
+  Future<bool> checkIfAccountExists() async {
+    try {
+      return await checkAccountExistsUseCase();
+    } catch (e) {
+      print('🔐 CUBIT: Error al verificar cuenta existente: $e');
+      return false;
+    }
+  }
+
   // Inicializar y verificar sesión existente
   Future<void> initializeAuth() async {
     emit(AuthLoading());
     try {
       print('🔐 CUBIT: Inicializando autenticación...');
+      
+      // Verificar si existe cuenta registrada
+      final hasAccount = await checkIfAccountExists();
+      if (!hasAccount) {
+        print('🔐 CUBIT: No hay cuenta registrada');
+        emit(AuthNoAccountRegistered());
+        return;
+      }
       
       _currentSession = await getCurrentSessionUseCase();
       
@@ -50,7 +77,7 @@ class AuthCubit extends Cubit<AuthState> {
           await logout();
         }
       } else {
-        print('🔐 CUBIT: No hay sesión previa');
+        print('🔐 CUBIT: No hay sesión previa, pero sí cuenta registrada');
         emit(AuthUnauthenticated());
       }
     } catch (e) {
@@ -77,6 +104,24 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  // Crear cuenta
+  Future<void> createAccount(String email, String password, String name) async {
+    emit(AuthLoading());
+    try {
+      print('🔐 CUBIT: Creando cuenta...');
+      
+      _currentSession = await createAccountUseCase(email, password, name);
+      
+      print('🔐 CUBIT: Cuenta creada exitosamente');
+      emit(AuthAccountCreated(session: _currentSession!));
+      _startSessionTimer();
+      
+    } catch (e) {
+      print('🔐 CUBIT: Error al crear cuenta: $e');
+      emit(AuthError(message: e.toString()));
+    }
+  }
+
   // Logout
   Future<void> logout() async {
     print('🔐 CUBIT: Cerrando sesión...');
@@ -86,7 +131,15 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       await logoutUseCase();
       _currentSession = null;
-      emit(AuthUnauthenticated());
+      
+      // Verificar si aún existe cuenta registrada
+      final hasAccount = await checkIfAccountExists();
+      if (hasAccount) {
+        emit(AuthUnauthenticated());
+      } else {
+        emit(AuthNoAccountRegistered());
+      }
+      
       print('🔐 CUBIT: Logout completado');
     } catch (e) {
       print('🔐 CUBIT: Error en logout: $e');
@@ -131,6 +184,16 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       print('🔐 CUBIT: Error al verificar sesión: $e');
     }
+  }
+
+  // Ir a crear cuenta
+  void goToCreateAccount() {
+    emit(AuthGoToCreateAccount());
+  }
+
+  // Volver al login
+  void goToLogin() {
+    emit(AuthUnauthenticated());
   }
 
   // Iniciar temporizador de sesión
